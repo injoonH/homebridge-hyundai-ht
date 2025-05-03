@@ -31,7 +31,8 @@
     "watch": "npm run build && npm link && nodemon"
   },
   "dependencies": {
-    "homebridge-lib": "^7.1.4"
+    "homebridge-lib": "^7.1.4",
+    "ky": "^1.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
