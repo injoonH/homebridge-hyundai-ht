@@ -8,7 +8,7 @@
     <img alt="Apache 2.0 License" src="https://img.shields.io/github/license/injoonH/homebridge-hyundai-ht?style=for-the-badge&labelColor=000">
   </a>
   <a href="https://github.com/injoonH/homebridge-hyundai-ht/actions">
-    <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/injoonH/homebridge-hyundai-ht/build.yml?style=for-the-badge&labelColor=000">
+    <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/injoonH/homebridge-hyundai-ht/build.yaml?style=for-the-badge&labelColor=000">
   </a>
 </div>
 
