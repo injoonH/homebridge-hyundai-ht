@@ -7,7 +7,7 @@
   },
   "description": "HomeBridge HTTP Status Control",
   "plugins": [
-    "homebridge-plugin-name",
+    "homebridge-hyundai-ht",
     "homebridge-config-ui-x"
   ],
   "platforms": [
@@ -23,8 +23,8 @@
       "debug": false
     },
     {
-      "name": "homebridge-plugin-name",
-      "platform": "ExampleHomebridgePlugin"
+      "name": "homebridge-hyundai-ht",
+      "platform": "HyundaiHT"
     }
   ],
   "accessories": []
