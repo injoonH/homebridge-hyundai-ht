@@ -31,11 +31,13 @@
     "watch": "npm run build && npm link && nodemon"
   },
   "dependencies": {
+    "crypto-js": "^4.2.0",
     "homebridge-lib": "^7.1.4",
     "ky": "^1.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^22.13.5",
     "eslint": "^9.21.0",
     "homebridge": "^2.0.0-beta.0",
