@@ -6,11 +6,29 @@
   "schema": {
     "type": "object",
     "properties": {
-      "name": {
-        "title": "Name",
+      "id": {
+        "title": "ID",
+        "description": "Hyundai HT account id",
+        "type": "string",
+        "required": true
+      },
+      "password": {
+        "title": "Password",
+        "description": "Hyundai HT account password",
         "type": "string",
         "required": true,
-        "default": "Example Dynamic Platform"
+        "x-schema-form": {
+          "type": "password"
+        }
+      },
+      "deviceStateRefreshInterval": {
+        "title": "Device State Refresh Interval",
+        "description": "Interval in seconds to refresh device state",
+        "type": "integer",
+        "default": 10,
+        "minimum": 5,
+        "maximum": 600,
+        "required": true
       }
     }
   }
