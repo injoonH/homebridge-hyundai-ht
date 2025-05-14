@@ -4,7 +4,7 @@
   "type": "module",
   "version": "0.1.0",
   "description": "Homebridge plugin for Hyundai HT Smart Home services",
-  "author": "Injoon Hwang",
+  "author": "Injoon Hwang <yuwol036@gmail.com>",
   "license": "Apache-2.0",
   "homepage": "https://github.com/injoonH/homebridge-hyundai-ht#readme",
   "repository": {
@@ -16,7 +16,9 @@
   },
   "keywords": [
     "homebridge-plugin",
-    "hyundai"
+    "hyundai",
+    "hyundai ht",
+    "smart home"
   ],
   "main": "dist/index.js",
   "engines": {
