@@ -1,30 +1,27 @@
 {
   "name": "homebridge-hyundai-ht",
   "displayName": "Hyundai HT",
-  "type": "module",
   "version": "0.1.0",
   "description": "Homebridge plugin for Hyundai HT Smart Home services",
-  "author": "Injoon Hwang <yuwol036@gmail.com>",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/injoonH/homebridge-hyundai-ht#readme",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/injoonH/homebridge-hyundai-ht.git"
-  },
-  "bugs": {
-    "url": "https://github.com/injoonH/homebridge-hyundai-ht/issues"
-  },
   "keywords": [
     "homebridge-plugin",
     "hyundai",
     "hyundai ht",
     "smart home"
   ],
-  "main": "dist/index.js",
-  "engines": {
-    "node": "^18.20.4 || ^20.18.0 || ^22.10.0",
-    "homebridge": "^1.8.0 || ^2.0.0-beta.0"
+  "homepage": "https://github.com/injoonH/homebridge-hyundai-ht#readme",
+  "bugs": {
+    "url": "https://github.com/injoonH/homebridge-hyundai-ht/issues",
+    "email": "yuwol036@gmail.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/injoonH/homebridge-hyundai-ht.git"
+  },
+  "license": "Apache-2.0",
+  "author": "Injoon Hwang <yuwol036@gmail.com>",
+  "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "build": "rimraf ./dist && tsc",
     "lint": "eslint . --max-warnings=0",
@@ -47,5 +44,9 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.24.1"
+  },
+  "engines": {
+    "homebridge": "^1.8.0 || ^2.0.0-beta.0",
+    "node": "^18.20.4 || ^20.18.0 || ^22.10.0"
   }
 }
