@@ -6,6 +6,13 @@
   "schema": {
     "type": "object",
     "properties": {
+      "name": {
+        "title": "Name",
+        "description": "Name of the plugin",
+        "type": "string",
+        "default": "Hyundai HT",
+        "required": true
+      },
       "id": {
         "title": "ID",
         "description": "Hyundai HT account id",

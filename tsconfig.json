@@ -1,24 +1,25 @@
 {
+  "include": ["eslint.config.js", "homebridge-ui", "src"],
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": [
-      "DOM",
-      "ES2022"
-    ],
-    "rootDir": "src",
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "strict": true,
     "module": "ES2022",
     "moduleResolution": "node",
-    "strict": true,
+    "rootDir": "src",
     "declaration": true,
     "outDir": "dist",
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": [
-    "eslint.config.js",
-    "homebridge-ui",
-    "src"
-  ]
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["DOM", "ES2022"],
+    "target": "ES2022"
+  }
 }
