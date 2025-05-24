@@ -20,7 +20,7 @@ export default tseslint.config(
       curly: ['error', 'all'],
       'prefer-arrow-callback': 'warn',
 
-      '@typescript-eslint/no-use-before-define': ['error', { classes: false, enums: false }],
+      '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: false, enums: false }],
       '@typescript-eslint/no-unused-vars': ['error', { caughtErrors: 'none' }],
     },
   },

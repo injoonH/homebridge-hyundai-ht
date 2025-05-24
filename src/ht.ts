@@ -1,6 +1,7 @@
 import { Logging } from 'homebridge'
-import ky, { type KyInstance } from 'ky'
+import ky, { type KyInstance, type KyRequest, type KyResponse, type NormalizedOptions } from 'ky'
 import AES from 'crypto-js/aes.js'
+import { Err, None, Ok, type Option, type Result, Some } from './lib/rust.js'
 
 export interface HTConfig {
   id: string
@@ -28,15 +29,10 @@ export interface Device {
   deviceLocation: string
 }
 
-interface GetC2CTokenResponse {
+interface HouseholdInfo {
   siteId: string
   dong: string
   ho: string
-  clientId: string
-  accessToken: string
-  refreshToken: string
-  siteName: string
-  preGarbageToken: string
 }
 
 interface Danji {
@@ -50,7 +46,9 @@ interface Danji {
 }
 
 interface GetHouseholdResponse {
-  danjiList: Danji[]
+  resultData: {
+    danjiList: Danji[]
+  }
 }
 
 interface DiscoverDevicesResponse {
@@ -63,38 +61,45 @@ interface DiscoverDevicesResponse {
   }
 }
 
+interface LoginError {
+  errorCode: number
+  errorMessage: string
+  resultData?: {
+    loginFailCount: number
+  }
+}
+
 export class HT {
-  private accessToken: string
+  private accessToken: Option<string>
   public client: KyInstance
 
   constructor(
     private readonly logger: Logging,
     private readonly config: HTConfig,
   ) {
-    this.accessToken = ''
+    this.accessToken = None()
 
     this.client = ky.create({
       prefixUrl: 'https://www2.hthomeservice.com',
-      retry: {
-        statusCodes: [401, 408, 413, 429, 500, 502, 503, 504],
-      },
       hooks: {
         beforeRequest: [
           async (request) => {
-            if (request.url !== 'https://www2.hthomeservice.com/login') {
-              request.headers.set('Cookie', this.accessToken)
-            }
+            request.headers.set('Cookie', this.accessToken.unwrapOr(''))
           },
         ],
-        beforeRetry: [
-          async ({ request }) => {
-            if (request.url !== 'https://www2.hthomeservice.com/login') {
-              await this.refreshAccessToken()
-              request.headers.set('Cookie', this.accessToken)
+        afterResponse: [
+          async (request, options, response) => {
+            if (response.ok) {
+              return response
             }
+            if (response.status === 401) {
+              return this.retryUnauthenticatedRequest(request, options, response)
+            }
+            return response
           },
         ],
       },
+      throwHttpErrors: false,
     })
   }
 
@@ -102,13 +107,16 @@ export class HT {
     return AES.encrypt(credential, 'hTsEcret').toString()
   }
 
-  private extractTokenFromHeader(header: Headers): string {
-    return header.getSetCookie()[0].split(';')[0]
+  private extractTokenFromHeader(header: Headers): Option<string> {
+    const firstCookie = header.getSetCookie()[0]
+    if (firstCookie) {
+      return Some(firstCookie.split(';')[0]!) // The result cannot be an empty array
+    }
+    return None()
   }
 
-  private async getAccessToken(): Promise<string> {
+  private async getAccessToken(): Promise<Result<string, Error>> {
     this.logger.info('Logging in to get access token')
-
     const res = await this.client.post('login', {
       json: {
         id: this.encryptCredential(this.config.id),
@@ -116,53 +124,106 @@ export class HT {
         rememberMe: false,
       },
     })
-    return this.extractTokenFromHeader(res.headers)
+    if (res.ok) {
+      const token = this.extractTokenFromHeader(res.headers)
+      return token.okOr(new Error('There is no access token in the response header'))
+    }
+    const loginError = await res.json<LoginError>()
+    return this.handleLoginFailure(loginError)
   }
 
-  private async getC2CToken(householdInfo: { siteId: string; dong: string; ho: string }): Promise<{
-    token: string
-    data: GetC2CTokenResponse
-  }> {
+  private handleLoginFailure({ errorCode, resultData }: LoginError): Result<never, Error> {
+    let message = 'Failed to login due to an unexpected error.'
+    switch (errorCode) {
+      case 104:
+        message = 'Incorrect ID or password.'
+        if (resultData) {
+          message += ` Login will be temporarily locked for 5 minutes after 5 failed attempts. (${resultData.loginFailCount}/5)`
+        }
+        break
+      case 107:
+        message = 'Access denied. You are not authorized to log in with these credentials.'
+        break
+      case 108:
+        message = 'Unusual login activity detected. Please wait 5 minutes before trying again.'
+    }
+    return Err(new Error(message))
+  }
+
+  private async getPermissionForDanji({ siteId, dong, ho }: HouseholdInfo): Promise<Result<null, Error>> {
     const res = await this.client.post('getctoctoken', {
-      json: {
-        clientId: 'HT-WEB',
-        siteId: householdInfo.siteId,
-        dong: householdInfo.dong,
-        ho: householdInfo.ho,
+      json: { siteId, dong, ho, clientId: 'HT-WEB' },
+    })
+    return res.ok ? Ok(null) : Err(new Error('Failed to update access token'))
+  }
+
+  private async getHouseholdDanji(): Promise<Result<Danji, Error>> {
+    const res = await this.client.get<GetHouseholdResponse>('proxy/bearer/api/v1/user/danji/household')
+    if (!res.ok) {
+      return Err(new Error(`Failed to fetch household information: ${res.status} ${res.statusText}.`))
+    }
+    const { resultData } = await res.json()
+    const danji = resultData.danjiList.find((it) => it.isApproved)
+    return danji ? Ok(danji) : Err(new Error('No approved household found'))
+  }
+
+  private accessTokenRefreshFailure(cause: Error): Error {
+    return new Error(`Failed to refresh access token: ${cause.message}`, { cause })
+  }
+
+  private async refreshAccessToken(): Promise<Result<null, Error>> {
+    const accessToken = await this.getAccessToken()
+    if (accessToken.isErr()) {
+      return Err(this.accessTokenRefreshFailure(accessToken.unwrapErr()))
+    }
+    this.accessToken = accessToken.ok()
+
+    const danji = await this.getHouseholdDanji()
+    if (danji.isErr()) {
+      return Err(this.accessTokenRefreshFailure(danji.unwrapErr()))
+    }
+
+    const { siteId, dong, ho } = danji.unwrap()
+    const promotion = await this.getPermissionForDanji({ siteId, dong, ho })
+    if (promotion.isErr()) {
+      return Err(this.accessTokenRefreshFailure(promotion.unwrapErr()))
+    }
+
+    return Ok(null)
+  }
+
+  private async retryUnauthenticatedRequest(
+    request: KyRequest,
+    options: NormalizedOptions,
+    response: KyResponse,
+  ): Promise<KyResponse> {
+    this.logger.info('Access token expired, refreshing...')
+    const refreshRes = await this.refreshAccessToken()
+    if (refreshRes.isErr()) {
+      this.logger.error(refreshRes.unwrapErr().message)
+      return response
+    }
+    this.logger.info('Finished refreshing access token successfully')
+    return ky(request, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Cookie: this.accessToken.unwrapOr(''),
       },
     })
-    const token = this.extractTokenFromHeader(res.headers)
-    const { resultData } = await res.json<{ resultData: GetC2CTokenResponse }>()
-    return { token, data: resultData }
   }
 
-  private async getHousehold(): Promise<GetHouseholdResponse> {
-    const res = await this.client
-      .get('proxy/bearer/api/v1/user/danji/household')
-      .json<{ resultData: GetHouseholdResponse }>()
-    return res.resultData
-  }
-
-  private async refreshAccessToken(): Promise<void> {
-    this.logger.info('Refreshing access token')
-
-    this.accessToken = await this.getAccessToken()
-
-    const { danjiList } = await this.getHousehold()
-    if (danjiList.length === 0) {
-      throw new Error('No household found')
+  async getDevices(): Promise<Result<Device[], Error>> {
+    const res = await this.client.get<DiscoverDevicesResponse>('proxy/ctoc/devices')
+    if (!res.ok) {
+      return Err(new Error(`Failed to fetch devices: ${res.status} ${res.statusText}.`))
     }
-    const { siteId, dong, ho } = danjiList[0]
-
-    await this.getC2CToken({ siteId, dong, ho })
-    this.logger.info('Finished refreshing access token successfully')
-  }
-
-  async getDevices(): Promise<Device[]> {
-    const res = await this.client.get('proxy/ctoc/devices').json<DiscoverDevicesResponse>()
-    return res.data.deviceList.map((device) => ({
-      ...device,
-      displayName: `${device.deviceLocation} ${device.deviceType}`,
-    }))
+    const { data } = await res.json()
+    return Ok(
+      data.deviceList.map((device) => ({
+        ...device,
+        displayName: `${device.deviceLocation} ${device.deviceType}`,
+      })),
+    )
   }
 }

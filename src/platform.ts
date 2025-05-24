@@ -9,6 +9,7 @@ import type {
 } from 'homebridge'
 import { LightAccessory } from './accessories/light.js'
 import { type Device, HT, type HTConfig } from './ht.js'
+import { None, type Option, Some } from './lib/rust.js'
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js'
 
 interface HTAccessoryContext {
@@ -23,8 +24,8 @@ export class HyundaiHTPlatform implements DynamicPlatformPlugin {
   public readonly accessories: Map<string, HTPlatformAccessory> = new Map()
   public readonly discoveredCacheUUIDs: Set<string> = new Set()
 
-  private readonly config: HTConfig
-  public readonly ht: HT
+  private readonly config: Option<HTConfig>
+  public readonly ht: Option<HT>
 
   constructor(
     public readonly log: Logging,
@@ -35,7 +36,7 @@ export class HyundaiHTPlatform implements DynamicPlatformPlugin {
     this.Characteristic = api.hap.Characteristic
 
     this.config = this.configureHTConfig(config)
-    this.ht = new HT(this.log, this.config)
+    this.ht = this.config.map((cfg) => new HT(this.log, cfg))
 
     this.log.debug('Finished initializing platform:', config.name)
 
@@ -45,10 +46,12 @@ export class HyundaiHTPlatform implements DynamicPlatformPlugin {
     })
   }
 
-  configureHTConfig(config: PlatformConfig): HTConfig {
+  configureHTConfig(config: PlatformConfig): Option<HTConfig> {
     const { id, password, deviceStateRefreshInterval } = config
-    // TODO: Validate config
-    return { id, password, deviceStateRefreshInterval }
+    if (!id || !password || !deviceStateRefreshInterval) {
+      return None()
+    }
+    return Some({ id, password, deviceStateRefreshInterval })
   }
 
   configureAccessory(accessory: PlatformAccessory): void {
@@ -57,9 +60,18 @@ export class HyundaiHTPlatform implements DynamicPlatformPlugin {
   }
 
   async discoverDevices(): Promise<void> {
-    const devices = await this.ht.getDevices()
+    if (this.ht.isNone()) {
+      this.log.error('Cannot discover devices: The plugin is not configured properly.')
+      return
+    }
+    const devices = await this.ht.unwrap().getDevices()
+    if (devices.isErr()) {
+      this.log.error(devices.unwrapErr().message)
+      return
+    }
 
-    for (const device of devices) {
+    for (const device of devices.unwrap()) {
+      // TODO: Support more device types
       if (device.deviceType !== 'light') {
         continue
       }
@@ -88,13 +100,13 @@ export class HyundaiHTPlatform implements DynamicPlatformPlugin {
   private registerAccessary(device: Device, uuid: string): void {
     this.log.info('Registering accessory for device:', device.displayName)
     const accessory = this.createAccessary(device, uuid)
-    new LightAccessory(this, accessory, this.config.deviceStateRefreshInterval)
+    new LightAccessory(this, this.ht.unwrap(), accessory, this.config.unwrap().deviceStateRefreshInterval)
     this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory])
   }
 
   private restoreAccessary(accessary: HTPlatformAccessory): void {
     this.log.info('Restoring existing accessory from cache:', accessary.displayName)
-    new LightAccessory(this, accessary, this.config.deviceStateRefreshInterval)
+    new LightAccessory(this, this.ht.unwrap(), accessary, this.config.unwrap().deviceStateRefreshInterval)
   }
 
   private removeUnpresentAccessaries(): void {
