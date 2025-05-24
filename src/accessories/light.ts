@@ -1,5 +1,7 @@
 import type { CharacteristicValue, Service } from 'homebridge'
 import type { HTPlatformAccessory, HyundaiHTPlatform } from '../platform.js'
+import type { HT } from '../ht.js'
+import { Err, Ok, type Result } from '../lib/rust.js'
 
 type LightPower = 'on' | 'off'
 
@@ -20,6 +22,7 @@ export class LightAccessory {
 
   constructor(
     private readonly platform: HyundaiHTPlatform,
+    private readonly ht: HT,
     private readonly accessory: HTPlatformAccessory,
     private readonly stateRefreshInterval: number,
   ) {
@@ -41,8 +44,14 @@ export class LightAccessory {
 
     setInterval(async () => {
       const isOn = await this.isLightTurnedOn()
-      this.service.getCharacteristic(this.platform.Characteristic.On).updateValue(isOn)
-      this.platform.log.debug(`Checked ${this.accessory.displayName} is ${isOn ? 'on' : 'off'}`)
+      if (isOn.isErr()) {
+        this.platform.log.error(isOn.unwrapErr().message)
+        return
+      }
+      isOn.inspect((it) => {
+        this.service.getCharacteristic(this.platform.Characteristic.On).updateValue(it)
+        this.platform.log.debug(`Checked ${this.accessory.displayName} is ${it ? 'on' : 'off'}`)
+      })
     }, this.stateRefreshInterval * 1_000)
   }
 
@@ -52,19 +61,25 @@ export class LightAccessory {
     await this.setLightPower(power)
   }
 
-  private async getLightDetail(): Promise<LightDetail> {
-    const res = await this.platform.ht.client.get(`proxy/ctoc/lights/${this.deviceId}`).json<{ data: LightDetail }>()
-    return res.data
+  private async getLightDetail(): Promise<Result<LightDetail, Error>> {
+    const res = await this.ht.client.get<{ data: LightDetail }>(`proxy/ctoc/lights/${this.deviceId}`)
+    if (res.ok) {
+      const { data } = await res.json()
+      return Ok(data)
+    }
+    return Err(new Error(`Failed to fetch light detail: ${res.status} ${res.statusText}.`))
   }
 
-  private async isLightTurnedOn(): Promise<boolean> {
+  private async isLightTurnedOn(): Promise<Result<boolean, Error>> {
     const detail = await this.getLightDetail()
-    // TODO: Assert that detail.statusList.length === 1
-    return detail.statusList[0].value === 'on'
+    return detail.map((it) => {
+      const status = it.statusList[0]! // There must be at least one status
+      return status.value === 'on'
+    })
   }
 
   private async setLightPower(state: LightPower): Promise<void> {
-    await this.platform.ht.client.put(`proxy/ctoc/lights/${this.deviceId}`, {
+    await this.ht.client.put(`proxy/ctoc/lights/${this.deviceId}`, {
       json: {
         commandList: [{ command: 'power', value: state }],
       },
