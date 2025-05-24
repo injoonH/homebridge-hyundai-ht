@@ -1,7 +1,7 @@
 {
   "name": "homebridge-hyundai-ht",
   "displayName": "Hyundai HT",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Homebridge plugin for Hyundai HT Smart Home services",
   "keywords": [
     "homebridge-plugin",
