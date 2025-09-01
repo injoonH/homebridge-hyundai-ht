@@ -1,6 +1,7 @@
 <div align="center">
   <a href="https://hyundaiht.co.kr"><img alt="Hyundai HT Brand Mark" src="https://hyundaiht.co.kr/kr/images/content/brand_logo_pink.png" height="64"></a>
   <h1>Homebridge Hyundai HT</h1>
+  <a href="https://github.com/homebridge/homebridge/wiki/Verified-Plugins"><img alt="Verified by Homebridge" src="https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=for-the-badge&logoColor=%23FFFFFF&logo=homebridge&labelColor=000"></a>
   <a href="https://www.npmjs.com/package/homebridge-hyundai-ht"><img alt="NPM Version" src="https://img.shields.io/npm/v/homebridge-hyundai-ht?style=for-the-badge&labelColor=000"></a>
   <a href="https://github.com/injoonH/homebridge-hyundai-ht/blob/latest/LICENSE"><img alt="Apache 2.0 License" src="https://img.shields.io/npm/l/homebridge-hyundai-ht?style=for-the-badge&labelColor=000"></a>
   <a href="https://github.com/injoonH/homebridge-hyundai-ht/actions"><img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/injoonH/homebridge-hyundai-ht/build.yaml?style=for-the-badge&labelColor=000"></a>
